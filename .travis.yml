@@ -1,0 +1,31 @@
+sudo: required
+services:
+- docker
+branches:
+  only:
+  - master
+  - develop
+script:
+- export ENV_FILE=`if [ "$TRAVIS_BRANCH" == "master" ]; then echo "prod"; else echo
+  "stage"; fi`
+- export TAG=`if [ "$TRAVIS_BRANCH" == "master" ];  then echo "production"; elif [
+  "$TRAVIS_BRANCH" == "develop" ]; then echo "stage"; else echo "dev-$(git rev-parse
+  --short HEAD)"; fi`
+- docker build --no-cache -t jincort/b2but-ico-dashboard-develop:${TAG} .
+- docker run --rm -v $(pwd):/usr/src/app jincort/b2but-ico-dashboard-develop:${TAG}
+  /bin/sh -c "yarn && cp -r .env.${ENV_FILE} .env && yarn build && yarn run lint &&
+  yarn run test:CI"
+after_success:
+- export DOCKERFILE=`if [ "$TRAVIS_BRANCH" == "develop" ]; then echo "Dockerfile.stage";
+  else echo "Dockerfile.prod" ; fi`
+- docker build -f $DOCKERFILE --no-cache -t jincort/b2but-ico-dashboard:${TAG} .
+- docker login -u $DOCKER_USER -p $DOCKER_PASS
+- docker push jincort/b2but-ico-dashboard-develop:${TAG}
+- docker push jincort/b2but-ico-dashboard:${TAG}
+notifications:
+  slack:
+    secure: MLGzHTBO1VpfWUTgPhQ6CMxzpGm3S67H7PyocZ6ZKKW8Bj8frDuYKXF0/VlXHrmU/FPVegYMNF574ihkmjFmW468nyXNaU6wg2yk0ryejIso6+Y/FCGZknQn8eBawj1Tuy7P1hOF5p01zmkl+XFfJgf0/jhDe5X8zZHW3L0ur1J0X7hPsSXaK9PPoF3Qj7sxO6pYeplsMJBDvGX82wvrCrKlk9AsQ9iQ0Vt76zSJRMYLhFUlubDyDELuSCnObSH0bsN1soytdiAgsmUI3uxVTX9xxEEnGfOa0c5q1IIiHN7mT7nI3LY2THo4MFW+vgcW5rI8IiqGDVo/ZED1HvN5Ssalnb4Sgobz/bgOTtKQXgEaEOl8IHjCECnwvoNuA5ZQu7KSVfdWTk1w6uu4qh/seC7yWwbXlKVskJ3+Z2yR1dcFhHApXatVZEptVpoVybZeTfgGE3QravlG/O2kwi+marUWgIPpvHVIXCKNTVXR88Ap0lyYFh5rVLKpNXgpX1k4nZ5chZlH6m0bIfc2vyrOYncrlG1ks1Bt8/a4SI36eMZYkgSNbi1F7UXsaVYHFLy7iDypx5bZjt5+4cqhLZ6plwR8XGB026FeNJF/uDKk8v4m8/nqziDDcQxTMmzsVsh3qwnUOH8Rk7HfoCo4VCGVF3aX0g1qPrEiVHuWTxjCi+k=
+env:
+  global:
+  - secure: NjtqUBJl2BJDGKTzbdqTme7Yy/jo1cv194l+RFx+pRQAyFZvz8vYMesVTa9MvN3l2d5ROgTBtjFLFdMyBWDd/8qfaxjDIiuPQsj3GekmclewtJI/bfi5RzxOdq8kcoVpOGz4a9scJVxN9wVUr2Nftukz5orUvZzcBzm1LOe7lzoOG6iMft6JWd4MgNHlSgC/y+PuD8ftBrv2oIhlIjusOUD0wH+EUKwt0SCkpQtOI5L65xkk1sAzf6GQrJjyMGwRWMH1tZRSfAANdiHNErBmuGtepJDC1kTccs/uP4wxEc4KwT1//yRPhw+0+9DcVraCM44kpAGmqjUbg2V6WZaSCpmT1UbNWMDl7+QH7KtgLDUGfGd5BsObb9JbXnfa0OoqDye1jB80n/SXl+yYhgir107R1guM7lMr9LnQxl6hLuPNiO+NjzfexwT3+8a+eTs5k6VQf4TG6Zfw9V4dsMNnC85qzi0HL5bDnQMk3mu6GAVDOx1bfRXhsd6kuHveqa3Wf5/kw7P5jxdiLOi0/TXLBghL63lz0QrA/yFXC5f0YwYqw3+nCeCLJCtPOGtFuWM65vttSEChhjIpBdv+dvbuiMmXAsjYILCrOuRKoly7wSMmJ2saZLSwE7NB/KDAXSkoUBw8kEpKw+PDG1eJqPEKruQyQZaaktnQG+dEkjODo3A=
+  - secure: N9AiUp5vEIEwJWDsIey5IEUY3JVY93GWN29fcIlLG+AcIq89JWYVHjZ52F2SXOpKdsZLZ+5pegDnQqjDr6ihcNJ59jhfDbcAgVXBXzoF+9f3Iu79lCvqXJxOailQaV4C0ydFcTQ0ntOoOJb10e3SM8WGVXfwbhTAJz+Zc1MAyiXyF56vnvys8QV8jd3LWGXmOKtGXHzYB2iE0xnWwJraUfpLUKAJsmFE8jt8qO3m7euIZqxKCVpMRsLUD2p3humbkNQpN9wQezUb5VrHRz8EYXUIc1Ll6Gub4kl5iOdPenCLTJDIr/HwIyJjCcKGDwzSkyBSbFCv/0pgxZeafU9zUtxosNqdLcmaWjNgjJTww4mFGEaSskXE80pLRGI1HLbjtKx79NPH72PziE5xAhHo+1zKTvk9Zk1PAS6TXILSK5MnUhkrbr6wTccVLw7pO4ky5j0KbcQ+f50WVoLvNDVBAuON1HTUOZ9rYn2CaJ3erBm+znEz9gtXOiawIQxvw5hW6id0kVDGd5tvPCoBDgu3VrPdFbwJ8p9bX8bEo4iGkNRM+liy5qKvL+RuNGOXzmR1LFb7fXPMzxo33mZGVjYdoQuoxjkcp/mhjarlxoSsbm+zbivRBB4F3ZxF7oUUg08Mr0z+TbSdogRQyBYVw6TLe6Gx8Ru/fQrUXJ3r0T2mXvQ=
